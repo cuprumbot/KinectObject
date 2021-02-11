@@ -17,8 +17,10 @@
 
 #include <NuiApi.h>
 
+#include "Socket.h"
 #include "OpenCVHelper.h"
 #include "FrameRateTracker.h"
+
 
 class CMainWindow
 {
@@ -79,6 +81,9 @@ public:
     /// </summary>
 	/// <returns>device connection id of Kinect sensor</param>
 	BSTR GetKinectDeviceConnectionId() const;
+
+    // Helper
+    Socket socketHelper;
 
 private:
     // Functions:

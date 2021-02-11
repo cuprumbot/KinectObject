@@ -19,6 +19,7 @@
 #pragma warning(pop)
 
 #include "OpenCVFrameHelper.h"
+#include "Socket.h"
 
 using namespace cv;
 
@@ -60,7 +61,7 @@ public:
     /// </summary>
     /// <param name="pImg">pointer to Mat to filter</param>
     /// <returns>S_OK if successful, an error code otherwise</returns>
-    HRESULT ApplyDepthFilter(Mat* pImg);
+    HRESULT ApplyDepthFilter(Mat* pImg, Socket* s);
 
     /// <summary>
     /// Draws the skeletons from the skeleton frame in the given color image Mat

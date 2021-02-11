@@ -10,6 +10,25 @@
 using namespace cv;
 using namespace std;
 
+int top = 132;
+int bottom = 326;
+int difY = bottom - top;
+
+int leftTop = 176;
+int leftBot = 150;
+int leftDif = leftBot - leftTop;    // negativo
+
+int rightTop = 478;
+int rightBot = 504;
+int rightDif = rightBot - rightTop;     // positivo
+
+Point c1 = Point(leftTop, top);
+Point c2 = Point(rightTop, top);
+Point c3 = Point(leftBot, bottom);
+Point c4 = Point(rightBot, bottom);
+
+
+
 const Scalar OpenCVHelper::SKELETON_COLORS[NUI_SKELETON_COUNT] =
 {
     Scalar(255, 0, 0),      // Blue
@@ -67,9 +86,31 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg)
         return E_INVALIDARG;
     }
 
+    //dirty
+    m_colorFilterID = IDM_COLOR_FILTER_NOFILTER;
+
     // Apply an effect based on the active filter
     switch(m_colorFilterID)
     {
+    case IDM_COLOR_FILTER_NOFILTER:
+        {
+
+        Scalar gr = SKELETON_COLORS[1];
+
+            circle(*pImg, c1, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c2, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c3, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c4, 4, SKELETON_COLORS[0], 2);
+
+            line(*pImg, c1, c2, gr, 1);
+            line(*pImg, c1, c3, gr, 1);
+            line(*pImg, c2, c4, gr, 1);
+            line(*pImg, c3, c4, gr, 1);
+
+            //circle(*pImg, Point(329, 224), 4, SKELETON_COLORS[1], 2);
+            //circle(*pImg, Point(329, 216), 4, SKELETON_COLORS[0], 2);
+        }
+        break;
     case IDM_COLOR_FILTER_GAUSSIANBLUR:
         {
             GaussianBlur(*pImg, *pImg, Size(7,7), 0);
@@ -110,7 +151,7 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg)
 /// </summary>
 /// <param name="pImg">pointer to Mat to filter</param>
 /// <returns>S_OK if successful, an error code otherwise</returns>
-HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
+HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg, Socket* out)
 {
     // Fail if pointer is invalid
     if (!pImg) 
@@ -129,7 +170,43 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
     {
     case IDM_DEPTH_FILTER_GAUSSIANBLUR:
         {
+            Mat clonada = (*pImg).clone();
+
+            char buffer[20];
+            Scalar color2 = SKELETON_COLORS[1];
+
             GaussianBlur(*pImg, *pImg, Size(5,5), 0);
+
+            int dis;
+
+            dis = clonada.at<Vec3b>(c1)[1];
+            sprintf_s(buffer, "A %d", dis);
+            putText(*pImg, buffer, c1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            dis = clonada.at<Vec3b>(Point(rightTop - 10, top))[1];
+            sprintf_s(buffer, "B %d", dis);
+            putText(*pImg, buffer, c2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            dis = clonada.at<Vec3b>(Point(leftBot + 10, bottom))[1];
+            sprintf_s(buffer, "C %d", dis);
+            putText(*pImg, buffer, c3, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            dis = clonada.at<Vec3b>(c4)[1];
+            sprintf_s(buffer, "D %d", dis);
+            putText(*pImg, buffer, c4, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            Point m1 = Point((leftTop + rightTop)/2 + 10, top);
+            dis = clonada.at<Vec3b>(m1)[1];
+            sprintf_s(buffer, "E %d", dis);
+            putText(*pImg, buffer, m1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            Point m2 = Point((leftBot + rightBot) / 2 + 10, bottom);
+            dis = clonada.at<Vec3b>(m2)[1];
+            sprintf_s(buffer, "F %d", dis);
+            putText(*pImg, buffer, m2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+            circle(*pImg, m1, 2, SKELETON_COLORS[2], 2);
+            circle(*pImg, m2, 2, SKELETON_COLORS[2], 2);
         }
         break;
     case IDM_DEPTH_FILTER_DILATE:
@@ -144,14 +221,47 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
         break;
     case IDM_DEPTH_FILTER_CANNYEDGE:
         {
+            // clon para poder obtener las distancias
+            // el canal green trae la distancia
+            // jaja esto no esta bien
+            // pero funciona
 			Mat clonada = (*pImg).clone();
-			Mat temp = (*pImg).clone();
 
-			char buffer[20];
+			char buffer[40];
 
 			// 5 20
 			const double minThreshold = 5.0;
 			const double maxThreshold = 20.0;
+
+            /*
+                FIND ME
+                NO FUNCIONA
+                NO APARECEN LAS ULTIMAS COLUMNAS
+            */
+            /*Mat res;
+            resize(*pImg, res, Size(), 0.8, 0.6, INTER_AREA);
+
+            for (int i = 0; i < res.cols; i++)
+            {
+                for (int j = 0; j < res.rows; j++)
+                {
+                    (*pImg).at<Vec3b>(j + 48, i + 64) = res.at<Vec3b>(j, i);
+                }
+            }*/
+
+
+            // FIND ME
+            // warp
+            Point2f sourceC[4] = { Point2f(0, 0), Point2f(639, 0), Point(0, 479), Point(639, 479) };
+            Point2f destinC[4] = { Point2f(38, 36), Point2f(621, 36), Point2f(38, 473), Point2f(621, 473) };
+                                                    // 8 extra x                  // 6 extra y
+            // + 12 y
+            // + 6 x
+            
+            Mat warp = getPerspectiveTransform(sourceC, destinC);
+            Mat dst;
+            warpPerspective(*pImg, dst, warp, Size(640, 480));
+            *pImg = dst;
 
 			// Convert image to grayscale for edge detection
 			cvtColor(*pImg, *pImg, CV_RGBA2GRAY);
@@ -159,57 +269,41 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
 			blur(*pImg, *pImg, Size(3, 3));
 			// Find edges in image
 			Canny(*pImg, *pImg, minThreshold, maxThreshold);
-			
-			/*
-				dibujar solo el canny
-				se mira muy bien!
-			
-			cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
-			break;
-			*/
-					
-			//adaptiveThreshold(*pImg, *pImg, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 11, 2);
 
 			int erosion_size = 1;
 			Mat element = getStructuringElement(MORPH_ELLIPSE,
 				Size(2 * erosion_size + 1, 2 * erosion_size + 1),
 				Point(erosion_size, erosion_size));
 			
-			dilate(*pImg, *pImg, element);						// FIND ME no funciona!
-			//erode(*pImg, *pImg, element);
+            // dilate y erode son operaciones destructivas en opencv 2
+            // todo funciona bien en opencv 4
+			dilate(*pImg, *pImg, element);
+			erode(*pImg, *pImg, element);
 
 			vector<vector<Point> > contours;
 			vector<Vec4i> hierarchy;
-
-			/*
-				previo a findContours
-				al parecer es destructivo
-			cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
-			break;
-			*/
 			
 			findContours(*pImg, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
 			
-			/*
-				la linea cambio para este punto
-			cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
-			break;
-			*/
-			
-			latestContourNumber = contours.size();				// imprimir en esquina
+            // cantidad para imprimir en la esquina
+            // mi primer debug :')
+			// latestContourNumber = contours.size();
 
+            // es el primer contorno de este frame?
 			boolean first = true;
 
 			cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
 
-            //Scalar color = SKELETON_COLORS[i % 5];
-            Scalar color = SKELETON_COLORS[0];
-            Scalar color2 = SKELETON_COLORS[1];
-            Scalar color3 = SKELETON_COLORS[2];
-            Scalar colorPinpoint = color2;
+            Scalar color = SKELETON_COLORS[0];          // blue
+            Scalar color2 = SKELETON_COLORS[1];         // green
+            Scalar color3 = SKELETON_COLORS[2];         // yellow
+            Scalar colorPinpoint = color;               // color trae blue
 
-			//Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
+            
 
+            // si no hay contornos
+            // por ejemplo, cuando recien esta iniciando
+            // FIND ME cambiar para que sea automatico cada cierto tiempo
             if (contours.size() == 0) {
                 firstObj = true;
             }
@@ -217,23 +311,30 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
 			for (size_t i = 0; i < contours.size(); i++)
 			{
 				int area = contourArea(contours[i]);
-				if (area > 500 && area < 1000) {
-					
+
+				if (area > 200 && area < 700) {
+                    // el contorno tiene tamano suficiente
 
 					// contorno ajustado
-					//drawContours(*pImg, contours, (int)i, color, 2, 2, hierarchy, 0);
+                    // visualizar cuales si se estan considerando de tamano valido
+                    // amarillo
+					drawContours(*pImg, contours, (int)i, color3, 1, LINE_8);
 
 					// elipse minimo
 					if (first) {
 						//ellipse(*pImg, fitEllipse(contours[i]), color, 1);
 
+                        // calcular los momentos
+                        // es decir los ejes
 						Moments m = moments(contours[i]);
 						int cx = m.m10 / m.m00;
 						int cy = m.m01 / m.m00;
-
+                        // obtener el pixel central, en la interseccion de esos ejes
 						Vec3b pixel = clonada.at<Vec3b>(Point(cx, cy));
+                        // ver su canal green que trae la distancia
 						int cm = pixel[1];
 
+                        // si es el primer objeto detectado fijarlo como target
                         if (firstObj) {
                             latestX = cx;
                             latestY = cy;
@@ -241,29 +342,76 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
                             firstObj = false;
                         }
                         else {
+                            // si no es el primero, ver si esta cerca
+                            // determinar que es el mismo
                             if (abs(cx - latestX) < 10 && abs(cy - latestY) < 10) {
+                                // color verde (antes era azul)
                                 colorPinpoint = color2;
-                                ellipse(*pImg, fitEllipse(contours[i]), color2, 2);
                                 if (latestDistances.size() < 20) {
                                     latestDistances.push_back(cm);
                                 }
+                                else {
+                                    //sprintf(buffer, "x: %d y: %d\n", latestX, latestY);
+
+                                    // FIND ME
+                                    // COORDENADAS
+                                    int yCalc = (latestY - top) * 40 / difY;
+
+                                    int leftLimit = leftTop + (yCalc * leftDif / 40);
+                                    int rightLimit = rightTop + (yCalc * rightDif / 40);
+                                    int xCalc = (latestX - leftLimit) * 60 / (rightLimit - leftLimit);
+
+                                    sprintf(buffer, "x: %d y: %d", xCalc, yCalc);
+                                    //out->setMessage(buffer);
+                                    //out->sendMessage();
+                                }
                             }
                             else {
+                                // color amarillo (antes era azul)
                                 colorPinpoint = color3;
-                                ellipse(*pImg, fitEllipse(contours[i]), color, 2);
                             }
+                            // elipse azul rodeandolo
+                            ellipse(*pImg, fitEllipse(contours[i]), color, 2);
                         }
 
-                        itoa(latestX, buffer, 10);
-                        putText(*pImg, buffer, Point(10, 250), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
-                        itoa(latestY, buffer, 10);
-                        putText(*pImg, buffer, Point(10, 270), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+                        // FIND ME
+                        // x,y dado en pixeles
+                        //itoa(latestX, buffer, 10);
+                        //putText(*pImg, buffer, Point(10, 250), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+                        //itoa(latestY, buffer, 10);
+                        //putText(*pImg, buffer, Point(10, 270), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
 
+                        int dis;
+
+                        dis = clonada.at<Vec3b>(c1)[1];
+                        sprintf(buffer, "%d", dis);
+                        putText(*pImg, buffer, c1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+                        dis = clonada.at<Vec3b>(c2)[1];
+                        sprintf(buffer, "%d", dis);
+                        putText(*pImg, buffer, c2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+                        dis = clonada.at<Vec3b>(c3)[1];
+                        sprintf(buffer, "%d", dis);
+                        putText(*pImg, buffer, c3, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+                        dis = clonada.at<Vec3b>(c4)[1];
+                        sprintf(buffer, "%d", dis);
+                        putText(*pImg, buffer, c4, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+
+                        // dibujar en verde el punto fijado
                         circle(*pImg, Point(latestX, latestY), 8, color2, 2);
+                        // dibujar en verde el punto actual si es el mismo
+                        // si es otro dibujarlo en amarillo
                         circle(*pImg, Point(cx, cy), 3, colorPinpoint, 2);
 						
+                        // si la distancia es aceptable, la imprimiremos en pantalla
 						if (cm >= 75 && cm <= 125) {
 							itoa(cm, buffer, 10);
+
+                            sprintf(buffer, "dist: %d\n", cm);
+                            //out->setMessage(buffer);
+                            //out->sendMessage();
 
 							putText(*pImg, buffer, Point(10, 200), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
 						}
@@ -273,6 +421,7 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
 					}
 
 					// rectangulo minimo
+                    /*
 					RotatedRect minRect = minAreaRect(contours[i]);
 					Point2f rect_points[4];
 					minRect.points(rect_points);
@@ -281,8 +430,26 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg)
 							//line(*pImg, rect_points[j], rect_points[(j + 1) % 4], color, 1);
 						}
 					} // end for - cuatro esquinas del rectangulo
+                    */
 				} // end if - areas de tamano mediano
 			} // end for - contornos de la imagen
+
+
+
+            Scalar gr = SKELETON_COLORS[1];
+
+            circle(*pImg, c1, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c2, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c3, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c4, 4, SKELETON_COLORS[0], 2);
+
+            line(*pImg, c1, c2, gr, 1);
+            line(*pImg, c1, c3, gr, 1);
+            line(*pImg, c2, c4, gr, 1);
+            line(*pImg, c3, c4, gr, 1);
+
+            //circle(*pImg, Point(329, 224), 4, SKELETON_COLORS[1], 2);
+            //circle(*pImg, Point(329, 216), 4, SKELETON_COLORS[0], 2);
         } // end case - canny edge
         break;
     }

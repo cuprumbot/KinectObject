@@ -51,7 +51,7 @@ CMainWindow::CMainWindow() :
     m_hDepthBitmapMutex(NULL),
     m_hPaintWindowMutex(NULL)
 {
-	
+    
 }
 
 /// <summary>
@@ -171,6 +171,11 @@ int CMainWindow::Run(HINSTANCE hInstance, int nCmdShow)
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+
+    int a = 0;
+    printf("im a test");
+    int b = 0;
+    printf("so am i");
 
     return static_cast<int>(msg.wParam);
 }
@@ -438,6 +443,10 @@ DWORD WINAPI CMainWindow::ProcessThread()
         numEvents = 1;
     }
 
+    // FIND ME
+    // CREAR SOCKET
+    //socketHelper.createSocket(8888);
+
     // Main update loop
     bool continueProcessing = true;
     while (continueProcessing)
@@ -565,8 +574,15 @@ DWORD WINAPI CMainWindow::ProcessThread()
                     continue;
                 }
 
+                //socketHelper.setMessage("----- applying depth filter -----");
+                //socketHelper.sendMessage();
+
                 // Apply filter to depth stream
-                hr = m_openCVHelper.ApplyDepthFilter(&m_depthMat);
+                hr = m_openCVHelper.ApplyDepthFilter(&m_depthMat, &socketHelper);
+
+                //socketHelper.setMessage("----- depth filter applied! -----");
+                //socketHelper.sendMessage();
+
                 if (FAILED(hr))
                 {
                     continue;
