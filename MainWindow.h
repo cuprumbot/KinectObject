@@ -232,7 +232,7 @@ private:
     /// <param name="resolution">resolution of images coming from stream</param>
 	/// <param name="filterID">id of the filter being applied to stream</param>
 	/// <param name="frameRate">actual frame rate of stream after filtering is applied</param>
-	std::wstring GenerateStreamInformation(NUI_IMAGE_RESOLUTION resolution, int filterID, double frameRate, int number);
+	std::wstring GenerateStreamInformation(NUI_IMAGE_RESOLUTION resolution, int filterID, double frameRate);
 
 	/// <summary>
     /// Computes framerate based on the interval between two timings taken with clock()

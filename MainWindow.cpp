@@ -5,6 +5,7 @@
 //-----------------------------------------------------------------------------
 
 #include "MainWindow.h"
+#include <time.h>
 
 using namespace cv;
 using namespace Microsoft::KinectBridge;
@@ -445,7 +446,7 @@ DWORD WINAPI CMainWindow::ProcessThread()
 
     // FIND ME
     // CREAR SOCKET
-    //socketHelper.createSocket(8888);
+    socketHelper.createSocket(8888);
 
     // Main update loop
     bool continueProcessing = true;
@@ -574,14 +575,8 @@ DWORD WINAPI CMainWindow::ProcessThread()
                     continue;
                 }
 
-                //socketHelper.setMessage("----- applying depth filter -----");
-                //socketHelper.sendMessage();
-
                 // Apply filter to depth stream
                 hr = m_openCVHelper.ApplyDepthFilter(&m_depthMat, &socketHelper);
-
-                //socketHelper.setMessage("----- depth filter applied! -----");
-                //socketHelper.sendMessage();
 
                 if (FAILED(hr))
                 {
@@ -734,7 +729,7 @@ void CMainWindow::PaintWindow()
 
     // Get color stream information text
     WaitForSingleObject(m_hColorResolutionMutex, INFINITE);
-    wstring colorStreamInfoText = GenerateStreamInformation(m_colorResolution, m_colorFilterID, m_colorFrameRateTracker.CurrentFPS(), m_openCVHelper.getLatestContourNumber());
+    wstring colorStreamInfoText = GenerateStreamInformation(m_colorResolution, m_colorFilterID, m_colorFrameRateTracker.CurrentFPS());
     ReleaseMutex(m_hColorResolutionMutex);
 
     // Paint color bitmap
@@ -749,7 +744,7 @@ void CMainWindow::PaintWindow()
 
     // Get depth stream information text
     WaitForSingleObject(m_hDepthResolutionMutex, INFINITE);
-    wstring depthStreamInfoText = GenerateStreamInformation(m_depthResolution, m_depthFilterID, m_depthFrameRateTracker.CurrentFPS(), m_openCVHelper.getLatestContourNumber());
+    wstring depthStreamInfoText = GenerateStreamInformation(m_depthResolution, m_depthFilterID, m_depthFrameRateTracker.CurrentFPS());
     ReleaseMutex(m_hDepthResolutionMutex);
 
     // Paint depth bitmap
@@ -1161,12 +1156,11 @@ wstring CMainWindow::ContourNumberToString(int number)
 /// <param name="resolution">resolution of images coming from stream</param>
 /// <param name="filterID">id of the filter being applied to stream</param>
 /// <param name="frameRate">actual frame rate of stream after filtering is applied</param>
-wstring CMainWindow::GenerateStreamInformation(NUI_IMAGE_RESOLUTION resolution, int filterID, double frameRate, int number)
+wstring CMainWindow::GenerateStreamInformation(NUI_IMAGE_RESOLUTION resolution, int filterID, double frameRate)
 {
     wstring streamInfoText = NuiImageResolutionToString(resolution);
     streamInfoText += _TEXT("\r\n") + FilterIDToString(filterID);
     streamInfoText += _TEXT("\r\n") + FrameRateToString(frameRate);
-	streamInfoText += _TEXT("\r\n") + ContourNumberToString(number);
 
     return streamInfoText;
 }

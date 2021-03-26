@@ -14,9 +14,9 @@
 
 // FIND ME
 // Distancias minima y maxima
-#define MIN_RDIS 800
+#define MIN_RDIS 900
 #define MAX_RDIS 1100
-#define DIF_RDIS 300
+#define DIF_RDIS 200
 
 namespace Microsoft {
     namespace KinectBridge {
@@ -1169,67 +1169,71 @@ namespace Microsoft {
 			// FIND ME
 			// Colorear en azul el area de deteccion y con rojo distinguir la profundidad
 			BYTE r = static_cast<BYTE>(realDepth >= MIN_RDIS && realDepth <= MAX_RDIS ? 255 - (realDepth - MIN_RDIS) * 255 / DIF_RDIS : 0);
-			BYTE b = static_cast<BYTE>(realDepth >= MIN_RDIS && realDepth <= MAX_RDIS ? 50 : 0);
+			BYTE b = static_cast<BYTE>(realDepth >= MIN_RDIS && realDepth <= MAX_RDIS ? 0 : 100);
 
 			BYTE g = static_cast<BYTE>(realDepth >= MIN_RDIS && realDepth <= MAX_RDIS ? realDepth / 10 : 0);
 
+            *redPixel = r;
+            *greenPixel = g;
+            *bluePixel = b;
+
             // Color the output based on the player index
-            switch(playerIndex)
-            {
-            case 0:															// caso de interes, sin jugador
-                *redPixel = r;												// bgr?
-                *greenPixel = g;
-                *bluePixel = b;
-                break;
+            //switch(playerIndex)
+            //{
+            //case 0:															// caso de interes, sin jugador
+            //    *redPixel = r;												// bgr?
+            //    *greenPixel = g;
+            //    *bluePixel = b;
+            //    break;
 
-            case 1:
-                *redPixel = b;
-                *greenPixel = 0;
-                *bluePixel = 0;
-                break;
+            //case 1:
+            //    *redPixel = b;
+            //    *greenPixel = 0;
+            //    *bluePixel = 0;
+            //    break;
 
-            case 2:
-                *redPixel = 0;
-                *greenPixel = b;
-                *bluePixel = 0;
-                break;
+            //case 2:
+            //    *redPixel = 0;
+            //    *greenPixel = b;
+            //    *bluePixel = 0;
+            //    break;
 
-            case 3:
-                *redPixel = b / 4;
-                *greenPixel = b;
-                *bluePixel = b;
-                break;
+            //case 3:
+            //    *redPixel = b / 4;
+            //    *greenPixel = b;
+            //    *bluePixel = b;
+            //    break;
 
-            case 4:
-                *redPixel = b;
-                *greenPixel = b;
-                *bluePixel = b / 4;
-                break;
+            //case 4:
+            //    *redPixel = b;
+            //    *greenPixel = b;
+            //    *bluePixel = b / 4;
+            //    break;
 
-            case 5:
-                *redPixel = b;
-                *greenPixel = b / 4;
-                *bluePixel = b;
-                break;
+            //case 5:
+            //    *redPixel = b;
+            //    *greenPixel = b / 4;
+            //    *bluePixel = b;
+            //    break;
 
-            case 6:
-                *redPixel = b / 2;
-                *greenPixel = b / 2;
-                *bluePixel = b;
-                break;
+            //case 6:
+            //    *redPixel = b / 2;
+            //    *greenPixel = b / 2;
+            //    *bluePixel = b;
+            //    break;
 
-            case 7:
-                *redPixel = 255 - (b / 2);
-                *greenPixel = 255 - (b / 2);
-                *bluePixel = 255 - (b / 2);
-                break;
+            //case 7:
+            //    *redPixel = 255 - (b / 2);
+            //    *greenPixel = 255 - (b / 2);
+            //    *bluePixel = 255 - (b / 2);
+            //    break;
 
-            default:
-                *redPixel = 0;
-                *greenPixel = 0;
-                *bluePixel = 0;
-                break;
-            }
+            //default:
+            //    *redPixel = 0;
+            //    *greenPixel = 0;
+            //    *bluePixel = 0;
+            //    break;
+            //}
 
 
             return S_OK;

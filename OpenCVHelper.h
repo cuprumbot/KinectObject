@@ -35,8 +35,6 @@ public:
     /// </summary>
     OpenCVHelper();
 
-	int getLatestContourNumber();
-
     /// <summary>
     /// Sets the color image filter to the one corresponding to the given resource ID
     /// </summary>
@@ -137,8 +135,6 @@ private:
     // Resource IDs of the active filters
     int m_colorFilterID;
     int m_depthFilterID;
-
-	int latestContourNumber;
 
     std::vector<int> latestDistances;
     
