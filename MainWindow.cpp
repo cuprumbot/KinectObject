@@ -541,7 +541,7 @@ DWORD WINAPI CMainWindow::ProcessThread()
                 }
 
                 // Apply filter to color stream
-                hr = m_openCVHelper.ApplyColorFilter(&m_colorMat);
+                hr = m_openCVHelper.ApplyColorFilter(&m_colorMat, &socketHelper);
                 if (FAILED(hr))
                 {
                     continue;
@@ -986,12 +986,14 @@ void CMainWindow::PaintBitmap(HDC hTarget, HBITMAP hBitmap, int x, int y, LPCWST
 	// TEXTO EN ESQUINA ARRIBA IZQUIERDA
 
     // Paint stream information text
+    /*
     RECT rect;
     rect.left = x + 20;
     rect.top = y + 20;
     rect.bottom = y + bm.bmHeight - 10;
     rect.right = x + bm.bmWidth - 10;
     DrawText(hTarget, streamInfo, -1, &rect, DT_LEFT );
+    */
 
     // Put back the old font
     SelectObject(hTarget, hPreviousFont);

@@ -52,7 +52,7 @@ public:
     /// </summary>
     /// <param name="pImg">pointer to Mat to filter</param>
     /// <returns>S_OK if successful, an error code otherwise
-    HRESULT ApplyColorFilter(Mat* pImg);
+    HRESULT ApplyColorFilter(Mat* pImg, Socket* s);
 
     /// <summary>
     /// Applies the depth image filter to the given Mat
