@@ -7,8 +7,6 @@
 #include "OpenCVHelper.h"
 #include <opencv2/imgproc/types_c.h>
 
-//#define DEBUG
-
 #ifdef DEBUG
 #define DRAW_DEBUG_TRAPEZOID    Scalar gr = SKELETON_COLORS[1];\
                                 circle(*pImg, c1, 4, SKELETON_COLORS[0], 2);\
@@ -28,69 +26,76 @@
 #define DEBUG_TRAPEZOID_CALC
 #endif
 
-
 using namespace cv;
 using namespace std;
 
-// constantes canny
+// Constantes para Canny Edge Detection
+// Obtenidas experimentalmente
 const double minThreshold = 5.0;
 const double maxThreshold = 20.0;
 
-// posiciones del trapecio
+// Posiciones del trapecio de recorte
+// Este trapecio es el área a observar, se dibuja en la imagen a color
 int top = 138;
 int bottom = 340;
 int difY = bottom - top;
 
 int leftTop = 156;
 int leftBot = 163;
-int leftDif = leftBot - leftTop;    // negativo
+int leftDif = leftBot - leftTop;        // negativo
 
 int rightTop = 468;
 int rightBot = 463;
 int rightDif = rightBot - rightTop;     // positivo
 
-// esquinas del trapecio
+// FIND ME: trapecio
+// Esquinas del trapecio
 Point c1 = Point(leftTop, top);
 Point c2 = Point(rightTop, top);
 Point c3 = Point(leftBot, bottom);
 Point c4 = Point(rightBot, bottom);
 
+// Esquinas con un pequeno desfase
+// Desfase usado para que linea de color de la cartulina no sea incluida
+// Para usar imagen de color, en lugar de depth
 Point c11 = Point(leftTop + 3, top + 3);
 Point c22 = Point(rightTop - 3, top + 3);
 Point c33 = Point(leftBot + 3, bottom - 3);
 Point c44 = Point(rightBot - 3, bottom - 3);
 
-
-
-// FIND ME
-// warp para equivalencia entre color y depth
+// FIND ME: warp
+// Warp para equivalencia entre color y depth
+// Imagen completa
 Point2f sourceC[4] = { Point2f(0, 0), Point2f(639, 0), Point(0, 479), Point(639, 479) };
-// 80 %
-// + 12 y + 6 extra fin y
-// + 6 x + 8 extra fin x
+// Imagen desfasada    
+    // 80 %
+    // + 12 y + 6 extra fin y
+    // + 6 x + 8 extra fin x
 Point2f destinC[4] = { Point2f(38, 36), Point2f(621, 36), Point2f(38, 473), Point2f(621, 473) };
 Mat warp = getPerspectiveTransform(sourceC, destinC);
 
-// FIND ME
-// warp para convertir trapecio a rectangulo
+// FIND ME: warp
+// Warp para convertir trapecio a rectangulo
+// Puntos del trapecio que se coloco arriba
 Point2f sourceRe[4] = { c1, c2, c3, c4 };
-// 20 px de margen
+// 20 px de margen al hacer el rectangulo
 Point2f destinRe[4] = { Point2f(20,20), Point2f(619, 20), Point2f(20, 459), Point2f(619, 459) };
 Mat warpRe = getPerspectiveTransform(sourceRe, destinRe);
 
-// FIND ME
-// warp para convertir trapecio a rectangulo
+// FIND ME: warp
+// Warp para convertir trapecio a rectangulo
+// Puntos del trapecio cuando se usara imagen de color
 Point2f sourceReColor[4] = { c11, c22, c33, c44 };
 // 20 px de margen
 Point2f destinReColor[4] = { Point2f(0, 0), Point2f(639, 0), Point2f(0, 479), Point2f(639, 479) };
 Mat warpReColor = getPerspectiveTransform(sourceReColor, destinReColor);
 
-// cuantas veces fallo el lock target
-// cuando aumenta demasiado, se cambia el target
+// Cuantas veces fallo el lock target
+// Cuando aumenta demasiado, se cambia el target
 int noFue = 0;
 int siFue = 0;
 
-// tiempo de referencia para saber si ya podemos seguir leyendo
+// Tiempo de referencia para saber si ya podemos seguir leyendo
 time_t refTime = time(0);
 bool paused = false;
 
@@ -150,7 +155,7 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg, Socket* out)
         return E_INVALIDARG;
     }
 
-    //dirty
+    // Solucion sucia, obligar a entrar al caso de NOFILTER
     //m_colorFilterID = IDM_COLOR_FILTER_NOFILTER;
 
     // Apply an effect based on the active filter
@@ -158,13 +163,15 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg, Socket* out)
     {
     case IDM_COLOR_FILTER_NOFILTER:
         {
+            // NOFILTER
+            // Dibujar trapecio
+            Scalar bl = SKELETON_COLORS[0];         // Blue
+            Scalar gr = SKELETON_COLORS[1];     // Green
 
-        Scalar gr = SKELETON_COLORS[1];
-
-            circle(*pImg, c1, 4, SKELETON_COLORS[0], 2);
-            circle(*pImg, c2, 4, SKELETON_COLORS[0], 2);
-            circle(*pImg, c3, 4, SKELETON_COLORS[0], 2);
-            circle(*pImg, c4, 4, SKELETON_COLORS[0], 2);
+            circle(*pImg, c1, 4, bl, 2);
+            circle(*pImg, c2, 4, bl, 2);
+            circle(*pImg, c3, 4, bl, 2);
+            circle(*pImg, c4, 4, bl, 2);
 
             line(*pImg, c1, c2, gr, 1);
             line(*pImg, c1, c3, gr, 1);
@@ -189,71 +196,80 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg, Socket* out)
         break;
     case IDM_COLOR_FILTER_CANNYEDGE:
     {
-        // buffer para textos
+        // Buffer para textos
         char buffer[50];
 
+        // Hacer el warp
+        // De trapecio a rectangulo con margen de 20px
         Mat dst;
-        //warpPerspective(*pImg, dst, warp, Size(640, 480));
         warpPerspective(*pImg, dst, warpReColor, Size(640, 480));
         *pImg = dst;
 
-        // Convert image to grayscale for edge detection
+        // Escala de gris para edge detection
         cvtColor(*pImg, *pImg, CV_RGBA2GRAY);
-        // Remove noise
+        // Ruido
         blur(*pImg, *pImg, Size(7, 7));
-        // Find edges in image
+        // Canny Edge Detection
         Canny(*pImg, *pImg, minThreshold, maxThreshold);
 
+        // Tamano para el dilate y erode
+        // En C++ es mas comodo construir la matriz y luego usarla
         int erosion_size = 2;
         Mat element = getStructuringElement(MORPH_ELLIPSE,
             Size(2 * erosion_size + 1, 2 * erosion_size + 1),
             Point(erosion_size, erosion_size));
 
-        // dilate y erode son operaciones destructivas en opencv 2
-        // todo funciona bien en opencv 4
+        // Dilate y erode son operaciones destructivas en OpenCV 2
+        // Todo funciona bien en OpenCV 4
         dilate(*pImg, *pImg, element);
         erode(*pImg, *pImg, element);
 
+        // Hallar contornos
         vector<vector<Point> > contours;
         vector<Vec4i> hierarchy;
-
         findContours(*pImg, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
 
-        // es el primer contorno de este frame?
+        // Es el primer contorno de este frame?
         boolean first = true;
 
+        // Convertir imagen de regreso a color
         cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
 
         Scalar color = SKELETON_COLORS[0];          // blue
-        Scalar color2 = SKELETON_COLORS[1];         // green
-        Scalar color3 = SKELETON_COLORS[2];         // yellow
+        Scalar colorGreen = SKELETON_COLORS[1];     // green
+        Scalar colorYellow = SKELETON_COLORS[2];    // yellow
         Scalar colorPinpoint = color;               // color trae blue
 
-        // si no hay contornos
-        // por ejemplo, cuando recien esta iniciando
-        // FIND ME cambiar para que sea automatico cada cierto tiempo
+        // FIND ME: no hay contornos
+        // Limpiar todo cuando no hay contornos
+        // Por ejemplo, cuando recien esta iniciando
         if (contours.size() == 0) {
             firstObj = true;
             noFue = 0;
             siFue = 0;
         }
 
-        // enviamos un mensaje, entonces estamos en pausa
+        // Enviamos un mensaje por socket, entonces estamos en pausa
         if (paused) {
-            // dibujar todos los contornos
-            drawContours(*pImg, contours, -1, color3, 1, LINE_8);
-            circle(*pImg, Point(latestX, latestY), 5, color2, 2);
+            // Dibujar todos los contornos
+            drawContours(*pImg, contours, -1, colorYellow, 1, LINE_8);
+            // Marcar el objeto target
+            circle(*pImg, Point(latestX, latestY), 5, colorGreen, 2);
 
+            // Pasaron mas de tres segundos
+            // Se puede aumentar el tiempo para tener mejor desempeno durante la ejecucion continua
+            // a cambio de un menor desempeno al iniciar
             if (difftime(time(0), refTime) > 3.0) {
-                // quito pausa
+                // Quito pausa
                 paused = false;
 
-                // obligo a elegir nuevo target
+                // Obligo a elegir nuevo target
                 firstObj = true;
                 noFue = 0;
                 siFue = 0;
             }
 
+            // No hay que analizar nada mas, solo gastar tiempo en lo que se quita la pausa
             break;
         }
 
@@ -262,77 +278,79 @@ HRESULT OpenCVHelper::ApplyColorFilter(Mat* pImg, Socket* out)
             int area = contourArea(contours[i]);
 
             if (area > 200 && area < 700) {
-                // el contorno tiene tamano suficiente
+                // El contorno tiene tamano suficiente
 
-                // contorno ajustado
-                // visualizar cuales si se estan considerando de tamano valido
-                // amarillo
-                drawContours(*pImg, contours, (int)i, color3, 1, LINE_8);
+                // Contorno ajustado
+                // Visualizar cuales si se estan considerando de tamano valido
+                drawContours(*pImg, contours, (int)i, colorYellow, 1, LINE_8);
 
-                // elipse minimo
+                // Elipse minimo
                 if (first) {
                     ellipse(*pImg, fitEllipse(contours[i]), color, 1);
 
-                    // calcular los momentos
-                    // es decir los ejes
+                    // Calcular los momentos, es decir los ejes
                     Moments m = moments(contours[i]);
                     int cx = m.m10 / m.m00;
                     int cy = m.m01 / m.m00;
 
-                    // si es el primer objeto detectado fijarlo como target
+                    // Si es el primer objeto detectado fijarlo como target
                     if (firstObj) {
                         latestX = cx;
                         latestY = cy;
                         firstObj = false;
                     }
                     else {
-                        // si no es el primero, ver si esta cerca
-                        // determinar que es el mismo
+                        // Si no es el primero, ver si esta cerca
+                        // Determinar que es el mismo
                         if (abs(cx - latestX) < 12 && abs(cy - latestY) < 12) {
-                            // color verde (antes era azul)
-                            colorPinpoint = color2;
+                            colorPinpoint = colorGreen;     // antes era azul
 
+                            // Se tiene certeza de que se esta viendo el mismo objeto
+                            // es decir, no fue ruido accidental
+                            // Aumentar para tener mayor certeza, a cambio de un lock más lento
                             if (siFue++ > 5) {
                                 
-                                    // FIND ME
-                                    // COORDENADAS
+                                // FIND ME: coordenadas
                                 int yCalc, xCalc;
 
+                                // 20, 20 tamano del margen
+                                // 40, 60 cantidad de centimetros
+                                // 440, 600 cantidad de pixeles
                                 yCalc = (latestY - 20) * 40 / 440;
                                 xCalc = (latestX - 20) * 60 / 600;
-                               
+                            
+                                // Compensar posicion del brazo fuera del rectangulo
                                 int yyyy = (xCalc - 30) * -10;
                                 int xxxx = (yCalc + 11) * 10;
 
+                                // Enviar dato por socket
                                 sprintf(buffer, "x %d y %d z 30", xxxx, yyyy);
                                 out->setMessage(buffer);
                                 out->sendMessage();
 
-                                // vamos a pausar por cierta cantidad de tiempo
-                                // asi evitamos enviar mensajes de mas
+                                // Pausa para evitar enviar demasiados mensajes
                                 refTime = time(0);
                                 paused = true;
                             }
                         }
                         else {
-                            // color amarillo (antes era azul)
-                            colorPinpoint = color3;
+                            colorPinpoint = colorYellow;    // antes era azul
 
-                            noFue++;
-                            if (noFue > 20) {
+                            // Si se ha fallado muchas veces, limpiar todo para fijar nuevo target
+                            if (noFue++ > 20) {
                                 firstObj = true;
                                 noFue = 0;
                                 siFue = 0;
                             }
                         }
-                        // elipse azul rodeandolo
+                        // Elipse azul rodeandolo
                         ellipse(*pImg, fitEllipse(contours[i]), color, 2);
                     }
 
-                    // dibujar en verde el punto fijado
-                    circle(*pImg, Point(latestX, latestY), 16, color2, 2);
-                    // dibujar en verde el punto actual si es el mismo
-                    // si es otro dibujarlo en amarillo
+                    // Dibujar en verde el punto fijado
+                    circle(*pImg, Point(latestX, latestY), 10, colorGreen, 2);
+                    // Dibujar en verde el punto actual si es el mismo
+                    // Si es otro dibujarlo en amarillo
                     circle(*pImg, Point(cx, cy), 10, colorPinpoint, 2);
 
                     first = false;
@@ -371,6 +389,10 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg, Socket* out)
     {
     case IDM_DEPTH_FILTER_GAUSSIANBLUR:
         {
+            // DEBUG SUMAMENTE SUCIO
+            // Se trae la informacion de color en el canal verde
+            // Se imprimen seis puntos y sus distancias en la orilla del trapecio
+
             Mat dst;
             warpPerspective(*pImg, dst, warp, Size(640, 480));
             warpPerspective(dst, *pImg, warpRe, Size(640, 480));
@@ -378,37 +400,35 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg, Socket* out)
             Mat clonada = (*pImg).clone();
 
             char buffer[20];
-            Scalar color2 = SKELETON_COLORS[1];
-
-            //GaussianBlur(*pImg, *pImg, Size(5,5), 0);
+            Scalar colorGreen = SKELETON_COLORS[1];
 
             int dis;
 
             dis = clonada.at<Vec4b>(c1)[1];
             sprintf_s(buffer, "A %d", dis);
-            putText(*pImg, buffer, c1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, c1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             dis = clonada.at<Vec4b>(Point(rightTop - 10, top))[1];
             sprintf_s(buffer, "B %d", dis);
-            putText(*pImg, buffer, c2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, c2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             dis = clonada.at<Vec4b>(Point(leftBot + 10, bottom))[1];
             sprintf_s(buffer, "C %d", dis);
-            putText(*pImg, buffer, c3, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, c3, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             dis = clonada.at<Vec4b>(c4)[1];
             sprintf_s(buffer, "D %d", dis);
-            putText(*pImg, buffer, c4, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, c4, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             Point m1 = Point((leftTop + rightTop)/2 + 10, top);
-            dis = clonada.at<Vec4b>(m1)[1];     // FIND ME - WHY??
+            dis = clonada.at<Vec4b>(m1)[1];
             sprintf_s(buffer, "E %d", dis);
-            putText(*pImg, buffer, m1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, m1, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             Point m2 = Point((leftBot + rightBot) / 2 + 10, bottom);
-            dis = clonada.at<Vec4b>(m2)[1];     // WHY??
+            dis = clonada.at<Vec4b>(m2)[1];
             sprintf_s(buffer, "F %d", dis);
-            putText(*pImg, buffer, m2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+            putText(*pImg, buffer, m2, FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
             circle(*pImg, m1, 2, SKELETON_COLORS[2], 2);
             circle(*pImg, m2, 2, SKELETON_COLORS[2], 2);
@@ -426,266 +446,179 @@ HRESULT OpenCVHelper::ApplyDepthFilter(Mat* pImg, Socket* out)
         break;
     case IDM_DEPTH_FILTER_CANNYEDGE:
         {
-            // buffer para textos
+            // Buffer para textos
 			char buffer[50];
 
             Mat dst;
             warpPerspective(*pImg, dst, warp, Size(640, 480));
             warpPerspective(dst, *pImg, warpRe, Size(640, 480));
 
-            // clon para poder obtener las distancias
-            // el canal green trae la distancia
-            // jaja esto no esta bien
-            // pero funciona
+            // Clon para poder obtener las distancias
+            // El canal green trae la distancia
+            // Sucio pero funcional
             Mat clonada = (*pImg).clone();
 
-			// Convert image to grayscale for edge detection
-			cvtColor(*pImg, *pImg, CV_RGBA2GRAY);
-			// Remove noise
-			blur(*pImg, *pImg, Size(3, 3));
-			// Find edges in image
-			Canny(*pImg, *pImg, minThreshold, maxThreshold);
+            // Escala de gris para edge detection
+            cvtColor(*pImg, *pImg, CV_RGBA2GRAY);
+            // Ruido
+            blur(*pImg, *pImg, Size(7, 7));
+            // Canny Edge Detection
+            Canny(*pImg, *pImg, minThreshold, maxThreshold);
 
-			int erosion_size = 2;
-			Mat element = getStructuringElement(MORPH_ELLIPSE,
-				Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-				Point(erosion_size, erosion_size));
-			
-            // dilate y erode son operaciones destructivas en opencv 2
-            // todo funciona bien en opencv 4
-			dilate(*pImg, *pImg, element);
-			erode(*pImg, *pImg, element);
+            // Tamano para el dilate y erode
+        // En C++ es mas comodo construir la matriz y luego usarla
+            int erosion_size = 2;
+            Mat element = getStructuringElement(MORPH_ELLIPSE,
+                Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+                Point(erosion_size, erosion_size));
 
-			vector<vector<Point> > contours;
-			vector<Vec4i> hierarchy;
-			
-			findContours(*pImg, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+            // Dilate y erode son operaciones destructivas en OpenCV 2
+            // Todo funciona bien en OpenCV 4
+            dilate(*pImg, *pImg, element);
+            erode(*pImg, *pImg, element);
 
-            // es el primer contorno de este frame?
-			boolean first = true;
+            // Hallar contornos
+            vector<vector<Point> > contours;
+            vector<Vec4i> hierarchy;
+            findContours(*pImg, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
 
-			cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
+            // Es el primer contorno de este frame?
+            boolean first = true;
+
+            // Convertir imagen de regreso a color
+            cvtColor(*pImg, *pImg, CV_GRAY2RGBA);
 
             Scalar color = SKELETON_COLORS[0];          // blue
-            Scalar color2 = SKELETON_COLORS[1];         // green
-            Scalar color3 = SKELETON_COLORS[2];         // yellow
+            Scalar colorGreen = SKELETON_COLORS[1];     // green
+            Scalar colorYellow = SKELETON_COLORS[2];    // yellow
             Scalar colorPinpoint = color;               // color trae blue
 
-            // si no hay contornos
-            // por ejemplo, cuando recien esta iniciando
-            // FIND ME cambiar para que sea automatico cada cierto tiempo
+            // FIND ME: no hay contornos
+            // Limpiar todo cuando no hay contornos
+            // Por ejemplo, cuando recien esta iniciando
             if (contours.size() == 0) {
-                latestDistances.clear();
                 firstObj = true;
                 noFue = 0;
                 siFue = 0;
             }
 
-            // enviamos un mensaje, entonces estamos en pausa
+            // Enviamos un mensaje por socket, entonces estamos en pausa
             if (paused) {
-                // dibujar todos los contornos
-                drawContours(*pImg, contours, -1, color3, 1, LINE_8);
-                circle(*pImg, Point(latestX, latestY), 10, color2, 2);
+                // Dibujar todos los contornos
+                drawContours(*pImg, contours, -1, colorYellow, 1, LINE_8);
+                // Marcar el objeto target
+                circle(*pImg, Point(latestX, latestY), 5, colorGreen, 2);
 
+                // Pasaron mas de tres segundos
+                // Se puede aumentar el tiempo para tener mejor desempeno durante la ejecucion continua
+                // a cambio de un menor desempeno al iniciar
                 if (difftime(time(0), refTime) > 3.0) {
-                    // quito pausa
+                    // Quito pausa
                     paused = false;
-                    
-                    // obligo a elegir nuevo target
-                    latestDistances.clear();
+
+                    // Obligo a elegir nuevo target
                     firstObj = true;
                     noFue = 0;
                     siFue = 0;
                 }
 
+                // No hay que analizar nada mas, solo gastar tiempo en lo que se quita la pausa
                 break;
             }
 
-			for (size_t i = 0; i < contours.size(); i++)
-			{
-				int area = contourArea(contours[i]);
+            for (size_t i = 0; i < contours.size(); i++)
+            {
+                int area = contourArea(contours[i]);
 
-				if (area > 200 && area < 700) {
-                    // el contorno tiene tamano suficiente
+                if (area > 200 && area < 700) {
+                    // El contorno tiene tamano suficiente
 
-					// contorno ajustado
-                    // visualizar cuales si se estan considerando de tamano valido
-                    // amarillo
-					drawContours(*pImg, contours, (int)i, color3, 1, LINE_8);
+                    // Contorno ajustado
+                    // Visualizar cuales si se estan considerando de tamano valido
+                    drawContours(*pImg, contours, (int)i, colorYellow, 1, LINE_8);
 
-					// elipse minimo
-					if (first) {
-						ellipse(*pImg, fitEllipse(contours[i]), color, 1);
+                    // Elipse minimo
+                    if (first) {
+                        ellipse(*pImg, fitEllipse(contours[i]), color, 1);
 
-                        // calcular los momentos
-                        // es decir los ejes
-						Moments m = moments(contours[i]);
-						int cx = m.m10 / m.m00;
-						int cy = m.m01 / m.m00;
-                        // obtener el pixel central, en la interseccion de esos ejes
-						Vec4b pixel = clonada.at<Vec4b>(Point(cx, cy));
-                        // ver su canal green que trae la distancia
-						int cm = pixel[1];
+                        // Calcular los momentos, es decir los ejes
+                        Moments m = moments(contours[i]);
+                        int cx = m.m10 / m.m00;
+                        int cy = m.m01 / m.m00;
 
-                        // si es el primer objeto detectado fijarlo como target
+                        // Si es el primer objeto detectado fijarlo como target
                         if (firstObj) {
                             latestX = cx;
                             latestY = cy;
-                            latestDistances.push_back(cm);
                             firstObj = false;
                         }
                         else {
-                            // si no es el primero, ver si esta cerca
-                            // determinar que es el mismo
+                            // Si no es el primero, ver si esta cerca
+                            // Determinar que es el mismo
                             if (abs(cx - latestX) < 12 && abs(cy - latestY) < 12) {
-                                // color verde (antes era azul)
-                                colorPinpoint = color2;
-                                /*if (latestDistances.size() < 3) {
-                                    if (cm >= 75 && cm <= 125) {
-                                        latestDistances.push_back(cm);
-                                    }
-                                }*/
+                                colorPinpoint = colorGreen;     // antes era azul
+
+                                // Se tiene certeza de que se esta viendo el mismo objeto
+                                // es decir, no fue ruido accidental
+                                // Aumentar para tener mayor certeza, a cambio de un lock más lento
                                 if (siFue++ > 3) {
-                                //else {
-                                    //sprintf(buffer, "x: %d y: %d\n", latestX, latestY);
 
-                                    // FIND ME
-                                    // COORDENADAS
-                                    int yCalc, leftLimit, rightLimit, xCalc;
+                                    // FIND ME: coordenadas
+                                    int yCalc, xCalc;
 
+                                    // 20, 20 tamano del margen
+                                    // 40, 60 cantidad de centimetros
+                                    // 440, 600 cantidad de pixeles
                                     yCalc = (latestY - 20) * 40 / 440;
                                     xCalc = (latestX - 20) * 60 / 600;
-                                    DEBUG_TRAPEZOID_CALC
 
-                                    int tot = 0;
-                                    /*for (int i = 0; i < latestDistances.size(); i++) {
-                                        tot += latestDistances[i];
-                                    }*/
-
-                                    //int check = 0;
-                                    //for (int xx = 0; check < 75; xx++) {
-                                    //    check = clonada.at<Vec4b>(Point(cx + xx, cy))[1];
-                                    //    //tot += check;
-                                    //}
-                                    ////sprintf(buffer, "arriba %d", check);
-                                    ////out->setMessage(buffer);
-                                    ////out->sendMessage();
-                                    //tot += check;
-
-                                    //check = 0;
-                                    //for (int xx = 0; check < 75; xx--) {
-                                    //    check = clonada.at<Vec4b>(Point(cx + xx, cy))[1];
-                                    //    //tot += check;
-                                    //}
-                                    ////sprintf(buffer, "abajo %d", check);
-                                    ////out->setMessage(buffer);
-                                    ////out->sendMessage();
-                                    //tot += check;
-
-                                    //check = 0;
-                                    //for (int yy = 0; check < 75; yy++) {
-                                    //    check = clonada.at<Vec4b>(Point(cx, cy + yy))[1];
-                                    //    //tot += check;
-                                    //}
-                                    ////sprintf(buffer, "derecha %d", check);
-                                    ////out->setMessage(buffer);
-                                    ////out->sendMessage();
-                                    //tot += check;
-
-                                    //check = 0;
-                                    //for (int yy = 0; check < 75; yy--) {
-                                    //    check = clonada.at<Vec4b>(Point(cx, cy + yy))[1];
-                                    //    //tot += check;
-                                    //}
-                                    ////sprintf(buffer, "izquierda %d", check);
-                                    ////out->setMessage(buffer);
-                                    ////out->sendMessage();
-                                    //tot += check;
-
-                                    //sprintf(buffer, "x: %d y: %d - debug: %d %d %d %d", xCalc, yCalc, pixel[0], pixel[1], pixel[2], pixel[3]);
-                                    //sprintf(buffer, "x: %d y: %d - debug: %d", xCalc, yCalc, tot/4);
-
-                                    // invertir eje
-                                    // centrar eje
-                                    // pasar a mm
+                                    // Compensar posicion del brazo fuera del rectangulo
                                     int yyyy = (xCalc - 30) * -10;
-
                                     int xxxx = (yCalc + 11) * 10;
 
+                                    // Enviar dato por socket
                                     sprintf(buffer, "x %d y %d z 30", xxxx, yyyy);
                                     out->setMessage(buffer);
                                     out->sendMessage();
 
-                                    // vamos a pausar por cierta cantidad de tiempo
-                                    // asi evitamos enviar mensajes de mas
-                                    latestDistances.clear();
+                                    // Pausa para evitar enviar demasiados mensajes
                                     refTime = time(0);
                                     paused = true;
                                 }
                             }
                             else {
-                                // color amarillo (antes era azul)
-                                colorPinpoint = color3;
+                                colorPinpoint = colorYellow;    // antes era azul
 
-                                noFue++;
-                                if (noFue > 20) {
-                                    latestDistances.clear();
+                                // Si se ha fallado muchas veces, limpiar todo para fijar nuevo target
+                                if (noFue++ > 20) {
                                     firstObj = true;
                                     noFue = 0;
                                     siFue = 0;
                                 }
                             }
-                            // elipse azul rodeandolo
+                            // Elipse azul rodeandolo
                             ellipse(*pImg, fitEllipse(contours[i]), color, 2);
                         }
 
                         // FIND ME
                         // x,y dado en pixeles
                         //itoa(latestX, buffer, 10);
-                        //putText(*pImg, buffer, Point(10, 250), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+                        //putText(*pImg, buffer, Point(10, 250), FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
                         //itoa(latestY, buffer, 10);
-                        //putText(*pImg, buffer, Point(10, 270), FONT_HERSHEY_COMPLEX_SMALL, 1.0, color2, 2);
+                        //putText(*pImg, buffer, Point(10, 270), FONT_HERSHEY_COMPLEX_SMALL, 1.0, colorGreen, 2);
 
-                        // dibujar en verde el punto fijado
-                        circle(*pImg, Point(latestX, latestY), 10, color2, 2);
-                        // dibujar en verde el punto actual si es el mismo
-                        // si es otro dibujarlo en amarillo
-                        circle(*pImg, Point(cx, cy), 20, colorPinpoint, 2);
-						
-                        // si la distancia es aceptable, la imprimiremos en pantalla
-						if (cm >= 75 && cm <= 125) {
-							itoa(cm, buffer, 10);
+                        // Dibujar en verde el punto fijado
+                        circle(*pImg, Point(latestX, latestY), 10, colorGreen, 2);
+                        // Dibujar en verde el punto actual si es el mismo
+                        // Si es otro dibujarlo en amarillo
+                        circle(*pImg, Point(cx, cy), 10, colorPinpoint, 2);
 
-                            sprintf(buffer, "dist: %d\n", cm);
-                            //out->setMessage(buffer);
-                            //out->sendMessage();
-						}
-						
-						first = false;
-						continue;
-					}
-
-					// rectangulo minimo
-                    /*
-					RotatedRect minRect = minAreaRect(contours[i]);
-					Point2f rect_points[4];
-					minRect.points(rect_points);
-					for (int j = 0; j < 4; j++) {
-						if (!first) {
-							//line(*pImg, rect_points[j], rect_points[(j + 1) % 4], color, 1);
-						}
-					} // end for - cuatro esquinas del rectangulo
-                    */
-				} // end if - areas de tamano mediano
-			} // end for - contornos de la imagen
-
-
-            DRAW_DEBUG_TRAPEZOID
-            
-
-            //circle(*pImg, Point(329, 224), 4, SKELETON_COLORS[1], 2);
-            //circle(*pImg, Point(329, 216), 4, SKELETON_COLORS[0], 2);
-        } // end case - canny edge
+                        first = false;
+                        continue;
+                    }
+                } // end if - areas de tamano mediano
+            } // end for - contornos de la imagen
+    } // end case - canny edge
         break;
     }
 
